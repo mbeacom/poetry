@@ -210,27 +210,27 @@ class PipInstaller(BaseInstaller):
 
         setup = os.path.join(req, "setup.py")
         has_setup = os.path.exists(setup)
-        if has_poetry and package.develop and not package.build_script:
-            # This is a Poetry package in editable mode
-            # we can use the EditableBuilder without going through pip
-            # to install it, unless it has a build script.
-            builder = EditableBuilder(
-                Factory().create_poetry(pyproject.parent), self._env, NullIO()
-            )
-            builder.build()
+        if has_poetry:
+            package_poetry = Factory().create_poetry(pyproject.parent)
+            if package.develop and not package_poetry.package.build_script:
+                # This is a Poetry package in editable mode
+                # we can use the EditableBuilder without going through pip
+                # to install it, unless it has a build script.
+                builder = EditableBuilder(package_poetry, self._env, NullIO())
+                builder.build()
 
-            return
-        elif has_poetry and (not has_build_system or package.build_script):
-            from poetry.core.masonry.builders.sdist import SdistBuilder
+                return
+            elif not has_build_system or package_poetry.package.build_script:
+                from poetry.core.masonry.builders.sdist import SdistBuilder
 
-            # We need to rely on creating a temporary setup.py
-            # file since the version of pip does not support
-            # build-systems
-            # We also need it for non-PEP-517 packages
-            builder = SdistBuilder(Factory().create_poetry(pyproject.parent))
+                # We need to rely on creating a temporary setup.py
+                # file since the version of pip does not support
+                # build-systems
+                # We also need it for non-PEP-517 packages
+                builder = SdistBuilder(package_poetry)
 
-            with open(setup, "w", encoding="utf-8") as f:
-                f.write(decode(builder.build_setup()))
+                with open(setup, "w", encoding="utf-8") as f:
+                    f.write(decode(builder.build_setup()))
 
         if package.develop:
             args.append("-e")
